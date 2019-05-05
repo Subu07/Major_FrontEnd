@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from "react";
+import React, {useState, useEffect, useRef} from "react";
 import {Button, Paper, CircularProgress, Typography} from "@material-ui/core";
 import {useSpring, animated} from "react-spring";
 import "./App.css";
@@ -7,6 +7,8 @@ export default function App() {
     const [address, setAddress] = useState(null);
     const [load, setLoad] = useState(true);
     const [processing, setProcessing] = useState(false);
+    const [disableSegment, setDisable] = useState(true);
+    const inputRef = useRef(null);
 
     const [imageAnimate, setImageAnimate] = useSpring(() => ({
         opacity: 1,
@@ -14,25 +16,23 @@ export default function App() {
     }));
 
     useEffect(() => {
-        //console.log(address);
-    },[address]);
+        console.log(address);
+    }, [address]);
 
     setImageAnimate({
         opacity: processing ? 0.7 : 1
     });
 
     const handleProcess = () => {
-        setProcessing(!processing);
+        setProcessing(true);
         let connection = new WebSocket('ws://localhost:8765');
         connection.onopen = function () {
             connection.send(address.split(',')[1]);
         };
         connection.onmessage = function (e) {
-            const reader = new FileReader();
-            reader.readAsDataURL(e.data);
-            reader.onloadend = () => {
-                console.log()
-            };
+            setAddress(address.split(',')[0] + ', ' + e.data);
+            setProcessing(false);
+            setDisable(true);
         };
 
     };
@@ -44,7 +44,9 @@ export default function App() {
         reader.onloadend = () => {
             setAddress(reader.result);
             setLoad(false);
+            setDisable(false);
         };
+        inputRef.current.value = "";
     };
 
     const paperStyle = {
@@ -63,20 +65,22 @@ export default function App() {
         <div style={{position: 'relative'}}>
             <Typography variant={"h4"} style={{textAlign: "center"}}>Building Footprint Extraction</Typography>
             <Paper elevation={12} style={paperStyle}>
-                {!load ? <animated.img src={address} alt={""} style={imageAnimate} className={"imageStyle"}/> :
+                {!load ? <animated.img src={address} alt={""} style={imageAnimate}
+                                       className={"imageStyle"}/> :
                     <Typography variant={"h4"}
                                 style={{position: 'relative', opacity: 0.4, textAlign: 'center', top: '50%'}}>Upload
                         Image</Typography>}
             </Paper>
             {processing && <CircularProgress style={{position: "absolute", top: '50%', left: '50%'}} size={50}/>}
             <br/>
-            <label htmlFor="imageUpload">
-                <Button variant={"contained"} color={"primary"} style={{marginLeft: '32vw'}}>
-                    Upload
-                </Button>
-            </label>
+
+            <Button onClick={() => inputRef.current.click()} variant={"contained"} color={"primary"}
+                    style={{marginLeft: '32vw'}}>
+                Upload
+            </Button>
+
             <Button
-                disabled={load}
+                disabled={disableSegment}
                 onClick={handleProcess}
                 variant={"contained"}
                 color={"secondary"}
@@ -85,8 +89,8 @@ export default function App() {
                 Segment
             </Button>
             <input
+                ref={inputRef}
                 onChange={handleImage}
-                id="imageUpload"
                 type="file"
                 style={{display: "none"}}
             />
